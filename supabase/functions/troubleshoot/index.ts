@@ -4,7 +4,7 @@ const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY")
 
-const SYSTEM_PROMPT = `You are an expert electronics troubleshooting AI for Circuit Fix Hub.
+const SYSTEM_PROMPT = `You are an expert electronics troubleshooting AI for Circuit Fix Hub. The user's message may include an image URL of their circuit — use it if present.
 
 Analyze the circuit issue described by the user. Detect ALL of these problem types:
 - wrong wiring and breadboard errors
@@ -530,20 +530,9 @@ serve(async (req) => {
 
     if (GROQ_API_KEY) {
       try {
-        const model = imageUrl ? "llama-3.2-11b-vision-preview" : "llama-3.3-70b-versatile"
-        const messages: Array<{ role: string; content: unknown }> = [
-          { role: "system", content: SYSTEM_PROMPT },
-        ]
+        let enrichedPrompt = prompt
         if (imageUrl) {
-          messages.push({
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: imageUrl } },
-            ],
-          })
-        } else {
-          messages.push({ role: "user", content: prompt })
+          enrichedPrompt += `\n\nThe user also uploaded an image of their circuit at this URL: ${imageUrl}`
         }
 
         const response = await fetch(
@@ -554,7 +543,14 @@ serve(async (req) => {
               Authorization: `Bearer ${GROQ_API_KEY}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ model, messages, temperature: 0.3 }),
+            body: JSON.stringify({
+              model: "llama-3.3-70b-versatile",
+              messages: [
+                { role: "system", content: SYSTEM_PROMPT },
+                { role: "user", content: enrichedPrompt },
+              ],
+              temperature: 0.5,
+            }),
           }
         )
 
