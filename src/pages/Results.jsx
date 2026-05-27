@@ -2,7 +2,14 @@ import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabase'
-import { AlertTriangle, CheckCircle, Lightbulb, ArrowLeft, Loader2, RefreshCw } from 'lucide-react'
+import { AlertTriangle, CheckCircle, Lightbulb, ArrowLeft, Loader2, RefreshCw, Bug, Zap, Cpu, Settings } from 'lucide-react'
+
+const categoryIcons = {
+  wiring: Zap, short: AlertTriangle, polarity: Bug, resistor: Settings,
+  power: Zap, microcontroller: Cpu, sensor: Cpu, opamp: Settings,
+  logic: Cpu, pcb: Settings, component: AlertTriangle, feedback: Settings,
+  beginners: Bug, capacitor: Settings,
+}
 
 export default function Results() {
   const { id } = useParams()
@@ -55,17 +62,27 @@ export default function Results() {
       }
 
       const data = await response.json()
+      const issues = data.issues || []
+      const first = issues[0] || {}
+      const allFixSteps = issues.flatMap(i => i.fix_steps || [])
 
       const updated = {
-        detected_issue: data.issue || 'Could not determine',
-        solution: data.fix_steps?.join('\n') || 'No solution available',
-        explanation: data.explanation || '',
-        confidence: data.confidence || 50,
+        detected_issue: first.issue || data.overall_summary || 'Could not determine',
+        explanation: data.overall_summary || issues.map(i => i.explanation).filter(Boolean).join('\n\n') || '',
+        solution: allFixSteps.join('\n') || 'No solution available',
+        confidence: data.overall_confidence || first.confidence || 50,
+        issues: issues,
       }
 
       await supabase
         .from('circuit_reports')
-        .update(updated)
+        .update({
+          detected_issue: updated.detected_issue,
+          solution: updated.solution,
+          explanation: updated.explanation,
+          confidence: updated.confidence,
+          issues: updated.issues,
+        })
         .eq('id', reportData.id)
 
       setReport(prev => ({ ...prev, ...updated }))
@@ -79,6 +96,7 @@ export default function Results() {
           detected_issue: 'Analysis failed',
           solution: errorMsg,
           confidence: 0,
+          issues: [],
         })
         .eq('id', reportData.id)
 
@@ -87,11 +105,14 @@ export default function Results() {
         detected_issue: 'Analysis failed',
         solution: errorMsg,
         confidence: 0,
+        issues: [],
       }))
     } finally {
       setAnalyzing(false)
     }
   }
+
+  const issues = report?.issues || []
 
   if (loading) {
     return (
@@ -145,47 +166,62 @@ export default function Results() {
               />
             )}
 
-            <div className="grid md:grid-cols-2 gap-6 mb-8">
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-                <div className="flex items-center gap-2 text-red-400 mb-3">
-                  <AlertTriangle className="w-5 h-5" />
-                  <h2 className="font-semibold">Detected Issue</h2>
-                </div>
-                <p className="text-zinc-200">{report.detected_issue}</p>
-              </div>
-
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
-                <div className="flex items-center gap-2 text-green-400 mb-3">
-                  <CheckCircle className="w-5 h-5" />
-                  <h2 className="font-semibold">Confidence Score</h2>
-                </div>
-                <p className={`text-4xl font-bold font-mono ${confidenceColor}`}>
-                  {report.confidence}%
-                </p>
-              </div>
-            </div>
-
             {report.explanation && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-6">
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8">
                 <div className="flex items-center gap-2 text-blue-400 mb-3">
                   <Lightbulb className="w-5 h-5" />
-                  <h2 className="font-semibold">Explanation</h2>
+                  <h2 className="font-semibold">Summary</h2>
                 </div>
                 <p className="text-zinc-300 leading-relaxed">{report.explanation}</p>
               </div>
             )}
 
-            {report.solution && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-6">
-                <div className="flex items-center gap-2 text-cyan-400 mb-3">
-                  <CheckCircle className="w-5 h-5" />
-                  <h2 className="font-semibold">Fix Steps</h2>
+            {issues.length > 0 && (
+              <div className="mb-8">
+                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <Bug className="w-5 h-5 text-red-400" />
+                  Detected Errors ({issues.length})
+                </h2>
+                <div className="space-y-4">
+                  {issues.map((item, idx) => {
+                    const Icon = categoryIcons[item.category] || AlertTriangle
+                    const itemConfidenceColor =
+                      item.confidence >= 80 ? 'text-green-400' :
+                      item.confidence >= 50 ? 'text-yellow-400' : 'text-red-400'
+                    return (
+                      <motion.div
+                        key={idx}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.1 }}
+                        className="bg-zinc-900 border border-zinc-800 rounded-xl p-6"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Icon className={`w-5 h-5 ${itemConfidenceColor}`} />
+                            <h3 className="font-semibold text-zinc-100">{item.issue}</h3>
+                          </div>
+                          <span className={`text-lg font-mono font-bold ${itemConfidenceColor}`}>
+                            {item.confidence}%
+                          </span>
+                        </div>
+                        {item.explanation && (
+                          <p className="text-zinc-400 text-sm mb-3">{item.explanation}</p>
+                        )}
+                        {item.fix_steps && item.fix_steps.length > 0 && (
+                          <div>
+                            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Fix Steps</p>
+                            <ol className="list-decimal list-inside text-zinc-300 text-sm space-y-1">
+                              {item.fix_steps.map((step, si) => (
+                                <li key={si}>{step}</li>
+                              ))}
+                            </ol>
+                          </div>
+                        )}
+                      </motion.div>
+                    )
+                  })}
                 </div>
-                <ol className="list-decimal list-inside text-zinc-300 space-y-2">
-                  {report.solution.split('\n').map((step, i) => (
-                    <li key={i}>{step.replace(/^\d+\.\s*/, '')}</li>
-                  ))}
-                </ol>
               </div>
             )}
 
