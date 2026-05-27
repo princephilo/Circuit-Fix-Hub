@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.208.0/http/server.ts"
 
 const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY")
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY")
+const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY")
 
 const SYSTEM_PROMPT = `You are an expert electronics troubleshooting AI.
 
@@ -145,7 +146,42 @@ serve(async (req) => {
       },
     ]
 
-    // Default to OpenAI; fallback to Gemini if no OpenAI key
+    if (GROQ_API_KEY) {
+      try {
+        const response = await fetch(
+          "https://api.groq.com/openai/v1/chat/completions",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${GROQ_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "llama-3.3-70b-versatile",
+              messages: [
+                { role: "system", content: SYSTEM_PROMPT },
+                { role: "user", content: `User circuit issue: ${prompt}` },
+              ],
+              temperature: 0.3,
+            }),
+          }
+        )
+
+        const data = await response.json()
+        if (!response.ok) throw new Error(`Groq API error: ${data.error?.message}`)
+
+        const text = data.choices?.[0]?.message?.content
+        if (!text) throw new Error("Groq returned empty response")
+
+        const cleaned = text.replace(/```(?:json)?\s*/g, "").trim()
+        const result = JSON.parse(cleaned)
+
+        return respond(result)
+      } catch (_err) {
+        // Fall through
+      }
+    }
+
     if (OPENAI_API_KEY) {
       const response = await fetch(
         "https://api.openai.com/v1/chat/completions",
