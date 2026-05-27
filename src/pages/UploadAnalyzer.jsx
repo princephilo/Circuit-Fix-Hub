@@ -21,7 +21,7 @@ export default function UploadAnalyzer() {
 
   const handleSubmit = async () => {
     if (!file && !prompt.trim()) {
-      setError('Upload an image or describe the issue')
+      setError('Describe the circuit issue or upload an image')
       return
     }
 
@@ -56,7 +56,7 @@ export default function UploadAnalyzer() {
         .insert({
           user_id: user.id,
           image_url: imageUrl,
-          prompt: prompt.trim() || 'Analyze this circuit',
+          prompt: prompt.trim() || (file ? 'Analyze this circuit image for visible issues: wiring, component placement, soldering defects' : ''),
           detected_issue: 'Processing...',
           solution: null,
           confidence: 0,
@@ -97,7 +97,7 @@ export default function UploadAnalyzer() {
 
         <div className="mt-6">
           <label className="block text-sm font-medium text-zinc-400 mb-2">
-            Describe the issue (optional)
+            Describe the issue {!file && <span className="text-red-400">*</span>}
           </label>
           <textarea
             value={prompt}

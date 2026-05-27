@@ -530,6 +530,22 @@ serve(async (req) => {
 
     if (GROQ_API_KEY) {
       try {
+        const model = imageUrl ? "llama-3.2-11b-vision-preview" : "llama-3.3-70b-versatile"
+        const messages: Array<{ role: string; content: unknown }> = [
+          { role: "system", content: SYSTEM_PROMPT },
+        ]
+        if (imageUrl) {
+          messages.push({
+            role: "user",
+            content: [
+              { type: "text", text: prompt },
+              { type: "image_url", image_url: { url: imageUrl } },
+            ],
+          })
+        } else {
+          messages.push({ role: "user", content: prompt })
+        }
+
         const response = await fetch(
           "https://api.groq.com/openai/v1/chat/completions",
           {
@@ -538,14 +554,7 @@ serve(async (req) => {
               Authorization: `Bearer ${GROQ_API_KEY}`,
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-              model: "llama-3.3-70b-versatile",
-              messages: [
-                { role: "system", content: SYSTEM_PROMPT },
-                { role: "user", content: prompt },
-              ],
-              temperature: 0.3,
-            }),
+            body: JSON.stringify({ model, messages, temperature: 0.3 }),
           }
         )
 
