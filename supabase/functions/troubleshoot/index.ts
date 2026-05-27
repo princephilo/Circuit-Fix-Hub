@@ -31,85 +31,169 @@ const corsHeaders = {
 function generateDemoResponse(prompt: string) {
   const lower = prompt.toLowerCase()
 
-  if (lower.includes("led") || lower.includes("light") || lower.includes("glow")) {
+  if (lower.includes("sensor") || lower.includes("ultrasonic") || lower.includes("temperature") || lower.includes("humidity")) {
     return {
-      issue: "LED not glowing — likely incorrect polarity or insufficient current",
-      confidence: 85,
+      issue: "Sensor not reading correctly — likely wiring or library issue",
+      confidence: 80,
       explanation:
-        "LEDs are polarity-sensitive components. The anode (+) must connect to the positive supply through a current-limiting resistor. If the LED is reversed or the resistor value is too high, the LED won't light up. Typical forward voltage is 2V and current should be 10-20mA.",
+        "Sensors often require specific wiring pull-up resistors and proper library initialization. Common issues include incorrect VCC/GND connections, missing pull-up resistors on I2C lines, or using the wrong pin numbers in code. Many sensors also need a stabilization period after power-up.",
       fix_steps: [
-        "Check LED polarity — anode (long leg) to positive, cathode (short leg) to ground",
-        "Verify the current-limiting resistor value using Ohm's Law: R = (V_supply - V_LED) / I",
-        "Ensure the resistor is placed between the positive supply and the LED anode",
-        "Measure voltage across the LED with a multimeter — should read ~2V when lit",
-        "If still not glowing, test the LED with a 3V coin cell battery directly",
+        "Verify sensor VCC is connected to the correct voltage (3.3V or 5V as per datasheet)",
+        "Check data pin connections match your code pin definitions",
+        "Add pull-up resistors (4.7kΩ) for I2C sensors if not on module",
+        "Allow 2-3 seconds after power-up before reading",
+        "Test with a simple example sketch from the sensor library",
       ],
       prevention_tips: [
-        "Always use a current-limiting resistor with LEDs (typically 220Ω–1kΩ for 5V)",
-        "Double-check polarity before soldering or connecting",
-        "Use a breadboard for prototyping before final assembly",
+        "Always read the sensor datasheet for wiring requirements",
+        "Use a logic level converter for 5V sensors with 3.3V microcontrollers",
+        "Keep sensor wires short to reduce noise interference",
       ],
     }
   }
 
-  if (lower.includes("motor") || lower.includes("spinning") || lower.includes("servo")) {
+  if (lower.includes("transistor") || lower.includes("mosfet") || lower.includes("switch") || lower.includes("relay")) {
     return {
-      issue: "Motor not spinning — insufficient power or incorrect driver wiring",
-      confidence: 82,
+      issue: "Switching component not activating — check gate/base drive voltage",
+      confidence: 83,
       explanation:
-        "Motors draw significantly more current than what microcontroller pins can supply. A motor driver IC (like L298N or L293D) or a transistor is required. Common issues include insufficient power supply, incorrect enable pin connections, or PWM signal misconfiguration.",
+        "Transistors and MOSFETs require sufficient gate/base voltage to turn fully on. A bipolar transistor needs 0.7V at the base, while a MOSFET needs a gate threshold voltage typically 2-4V. If the drive voltage is too low, the component operates in linear mode and overheats.",
       fix_steps: [
-        "Verify the motor driver is receiving proper power (5V or 12V as required)",
-        "Check that the enable pins on the motor driver are connected to HIGH (or PWM)",
-        "Ensure the microcontroller ground and motor driver ground are common",
-        "Test the motor directly with a battery to confirm it's functional",
-        "For servo motors, verify the PWM signal frequency is correct (50Hz)",
+        "Measure the gate/base voltage with a multimeter while the circuit is on",
+        "Ensure the microcontroller pin can supply enough current (use a transistor driver IC if needed)",
+        "Add a pull-down resistor (10kΩ) between gate and source to prevent floating",
+        "Check that the load voltage and current don't exceed the transistor's ratings",
+        "For inductive loads like relays, add a flyback diode across the coil",
       ],
       prevention_tips: [
-        "Never connect a motor directly to a microcontroller pin",
-        "Use flyback diodes across DC motor terminals to prevent voltage spikes",
-        "Add a large capacitor (100µF+) across the motor power supply",
+        "Always use a base resistor (1kΩ) with bipolar transistors",
+        "Use a logic-level MOSFET for 3.3V/5V microcontroller switching",
+        "Add a heatsink if switching more than 500mA",
       ],
     }
   }
 
-  if (lower.includes("arduino") || lower.includes("board") || lower.includes("not working") || lower.includes("dead")) {
+  if (lower.includes("capacitor") || lower.includes("cap") || lower.includes("filter") || lower.includes("smoothing")) {
     return {
-      issue: "Arduino board unresponsive — possible power issue or short circuit",
-      confidence: 78,
+      issue: "Capacitor issue — wrong value, polarity reversed, or voltage rating insufficient",
+      confidence: 84,
       explanation:
-        "An unresponsive Arduino board is often caused by insufficient power, a short circuit on the breadboard, a blown voltage regulator, or the wrong board/port selected in the IDE. The onboard LED (pin 13) helps diagnose if the microcontroller is running.",
+        "Electrolytic capacitors are polarized and will fail if reversed. Ceramic capacitors are non-polarized but can have temperature-related value drift. Using too low a voltage rating can cause catastrophic failure. Filter capacitors need correct ESR and sufficient capacitance for the load current.",
       fix_steps: [
-        "Check that the power LED on the Arduino is lit",
-        "Disconnect all external components and test with a bare board",
-        "Try a different USB cable and port — data cables matter",
-        "Select the correct board type and COM port in the Arduino IDE",
-        "Upload a simple Blink sketch to verify the board works",
+        "Check electrolytic capacitor polarity — the negative side is marked with a stripe",
+        "Verify the capacitor voltage rating exceeds the circuit voltage by at least 20%",
+        "For filter caps, ensure capacitance matches the calculated ripple requirement",
+        "Use a multimeter's capacitance mode to verify actual capacitance",
+        "Replace bulging or leaking capacitors immediately",
       ],
       prevention_tips: [
-        "Always disconnect power when making wiring changes",
-        "Use a USB isolator for protection against shorts",
-        "Keep a spare Arduino for quick troubleshooting",
+        "Derate capacitor voltage by 50% for long-term reliability",
+        "Use low-ESR capacitors for power supply filtering",
+        "Never connect electrolytic capacitors in reverse polarity",
+      ],
+    }
+  }
+
+  if (lower.includes("soldering") || lower.includes("solder") || lower.includes("cold joint") || lower.includes("bridge")) {
+    return {
+      issue: "Soldering defect — cold joint, solder bridge, or insufficient wetting",
+      confidence: 87,
+      explanation:
+        "Cold solder joints happen when the iron temperature is too low or the joint moves during cooling. Solder bridges occur when excess solder connects adjacent pins. Insufficient wetting means the solder hasn't bonded properly to both the pad and the component lead.",
+      fix_steps: [
+        "Reheat suspect joints with a clean soldering iron tip at 350°C",
+        "Use flux on stubborn joints to improve solder flow",
+        "Check for solder bridges between IC pins using a magnifying glass",
+        "Use solder wick or a solder sucker to remove bridges",
+        "Ensure the iron tip is tinned before each joint",
+      ],
+      prevention_tips: [
+        "Use a temperature-controlled soldering iron set to 300-350°C",
+        "Keep the iron tip clean and tinned",
+        "Use flux-core solder (63/37 leaded for easier work)",
+      ],
+    }
+  }
+
+  if (lower.includes("power") || lower.includes("voltage") || lower.includes("regulator") || lower.includes("battery")) {
+    return {
+      issue: "Power supply issue — voltage drop, insufficient current, or regulator overheating",
+      confidence: 86,
+      explanation:
+        "Voltage regulators like the 7805 need a minimum input-output voltage differential (dropout voltage). Insufficient input voltage or excessive load current causes the output to drop out. Linear regulators convert excess voltage to heat, which can trigger thermal shutdown if not properly heatsinked.",
+      fix_steps: [
+        "Measure input and output voltages of the regulator with a multimeter",
+        "Check input voltage is at least 2V above output for standard regulators",
+        "Verify the load current doesn't exceed the regulator's rated maximum",
+        "Add adequate heatsinking — calculate power dissipation as (Vin - Vout) * Iload",
+        "Add 10µF electrolytic + 0.1µF ceramic capacitors at regulator input and output",
+      ],
+      prevention_tips: [
+        "Use a switching regulator instead of linear for >500mA loads",
+        "Add a fuse on the input side to protect against shorts",
+        "Keep regulator input capacitors close to the regulator pins",
+      ],
+    }
+  }
+
+  if (lower.includes("short") || lower.includes("smoke") || lower.includes("burn") || lower.includes("hot")) {
+    return {
+      issue: "Short circuit detected — check for unintended connections between power and ground",
+      confidence: 92,
+      explanation:
+        "A short circuit occurs when power and ground are directly connected with little or no resistance. This causes excessive current flow, overheating, and potential component damage. Common causes include solder bridges, crushed wires, and conductive debris on the PCB.",
+      fix_steps: [
+        "Immediately disconnect power to prevent further damage",
+        "Use a multimeter in continuity mode to find the short between VCC and GND",
+        "Visually inspect for solder bridges, loose wires, or component legs touching",
+        "Check components for burn marks and replace damaged ones",
+        "Use a lab power supply with current limiting to test the circuit safely",
+      ],
+      prevention_tips: [
+        "Always check for shorts with a multimeter before applying power",
+        "Use a current-limited power supply when testing new circuits",
+        "Inspect PCBs under good lighting before powering up",
+      ],
+    }
+  }
+
+  if (lower.includes("lcd") || lower.includes("display") || lower.includes("oled") || lower.includes("screen")) {
+    return {
+      issue: "Display not showing output — contrast, I2C address, or initialization issue",
+      confidence: 81,
+      explanation:
+        "LCD and OLED displays commonly fail to show output due to incorrect contrast voltage (for parallel LCDs), wrong I2C address (for I2C modules), or improper initialization in code. Many I2C displays use address 0x27 or 0x3C, and using the wrong one gives a blank screen.",
+      fix_steps: [
+        "Adjust the contrast potentiometer on the LCD module slowly",
+        "Run an I2C scanner sketch to find the correct address",
+        "Verify all data/control pins match your code definitions",
+        "Ensure the display's operating voltage matches your system (3.3V vs 5V)",
+        "Test with a known working example sketch before modifying",
+      ],
+      prevention_tips: [
+        "Use an I2C backpack module to reduce wiring complexity",
+        "Note the I2C address from the scanner and use it in your code",
+        "Add a small delay in setup() before initializing the display",
       ],
     }
   }
 
   return {
-    issue: "Possible wiring error or component mismatch detected in the circuit",
-    confidence: 72,
+    issue: `Analysis of "${prompt.substring(0, 40)}${prompt.length > 40 ? '...' : ''}" — possible wiring or configuration issue`,
+    confidence: 70 + Math.floor(Math.random() * 20),
     explanation:
-      "The circuit may have a wiring error such as a loose connection, incorrect component placement, or a mismatch between the expected and actual component values. Check all connections systematically.",
+      "Based on the issue described, the circuit likely has a wiring error, incorrect component value, or software configuration problem. The specific symptoms should be cross-referenced with the circuit schematic to isolate the faulty section. Start with a systematic check of power connections, signal paths, and component orientation.",
     fix_steps: [
-      "Visually inspect all connections on the breadboard",
-      "Verify component values match the circuit schematic",
-      "Check for cold solder joints if using a perfboard",
-      "Use a multimeter in continuity mode to trace connections",
-      "Compare your wiring against a known-working schematic or tutorial",
+      "Verify power supply voltage and polarity at the circuit input",
+      "Inspect all connections for loose wires or cold solder joints",
+      "Check component values against the circuit schematic",
+      "Measure voltage at key test points with a multimeter",
+      "Isolate the circuit into sub-sections and test each independently",
     ],
     prevention_tips: [
-      "Use a breadboard diagram or schematic before starting",
-      "Label all wires with their connections",
-      "Take photos of working circuits for reference",
+      "Always breadboard and test circuits before final assembly",
+      "Use a multimeter to verify connections before applying power",
+      "Document your circuit with a schematic for easier troubleshooting",
     ],
   }
 }
